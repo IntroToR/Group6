@@ -1,0 +1,25 @@
+---
+title: "Group 6 R Project"
+author: "Beau Barber"
+date: "9/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Install tidytuesday package
+```{r}
+install.packages("tidytuesdayR")
+```
+
+
+
+#Pull Data
+
+```{r}
+rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
+temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
+```
+
