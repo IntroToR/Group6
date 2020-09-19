@@ -22,4 +22,30 @@ install.packages("tidytuesdayR")
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
 temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
 ```
+## Load all necessary libraries
+Be sure to install these packages on your computer if you have never done so before (ex: install.packages("lsmeans"))
+```{r}
+library(lmerTest)
+library(lsmeans)
+library(multcomp)
+library(multcompView)
+library(tidyverse)
+library(lawstat)
+```
 
+Add a column to rainfall data so the date is all in one column
+```{r}
+rainfall$date <-paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = "")
+
+```
+
+Filter the rainfall and temperature data so we are only working with variables from Jan 2008 to Dec 2018
+```{r}
+rainfall_1 <- rainfall %>% filter(date >= "2008-01-01", 
+                                 date <= "2018-12-31")
+temp_1 <- temperature %>% filter(date >= "2008-01-01", 
+                                 date <= "2018-12-31")
+```
+
+
+```
