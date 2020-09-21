@@ -22,6 +22,52 @@ install.packages("tidytuesdayR")
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
 temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
 ```
+## Load all necessary libraries
+Be sure to install these packages on your computer if you have never done so before (ex: install.packages("lsmeans"))
+```{r}
+library(lmerTest)
+library(lsmeans)
+library(multcomp)
+library(multcompView)
+library(tidyverse)
+library(lawstat)
+```
+
+Add a column to rainfall data so the date is all in one column
+```{r}
+rainfall$date <- paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = "")
+
+```
+
+Filter the rainfall and temperature data so we are only working with variables from Jan 2008 to Dec 2018
+```{r}
+rainfall_1 <- rainfall %>% filter(date >= "2008-01-01", 
+                                 date <= "2018-12-31")
+temp_1 <- temperature %>% filter(date >= "2008-01-01", 
+                                 date <= "2018-12-31")
+head(rainfall_1)
+head(temp_1)
+```
+
+The ~ variables return the measurements by all combinations of var1 + var2, e.g. var1_1+var2_1, var1_2+var2_1, var1_1+var2_2, var1_2+var2_2. So, for individual variables where you want the measurements across all levels of the others, keep them separate.
+
+```{r}
+library(doBy)
+
+summaryBy(temperature ~ temp_type + city_name, data = temp_1,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
+summaryBy(rainfall ~ city_name, data = rainfall_1,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
+summaryBy(rainfall ~ month, data = rainfall_1,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
+summaryBy(rainfall ~ year, data = rainfall_1,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
+```
+
 
 ```{r}
 
