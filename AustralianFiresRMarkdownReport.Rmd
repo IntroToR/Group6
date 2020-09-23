@@ -68,8 +68,35 @@ summaryBy(rainfall ~ year, data = rainfall_1,
 
 ```
 
-
+Simple One-Way Analysis of Variance ANOVA 
 ```{r}
+#### General format is:   fit <- aov(y ~ A, data=mydataframe) where y and A are variables in the mydataframe
+
+#ANOVA temperature and temp_type+city_name
+aov_temp_ttype_city <- aov(temperature ~ temp_type + city_name, data = temp_1)
+print(aov_temp_ttype_city)
+
+#ANOVA rainfall and city_name
+aov_rainfall_city <- aov(rainfall ~ city_name, data = rainfall_1)
+print(aov_rainfall_city)
+
+#ANOVA rainfall and month
+aov_rainfall_month <- aov(rainfall ~ month, data = rainfall_1)
+print(aov_rainfall_month)
+
+#ANOVA rainfall and year
+aov_rainfall_year <- aov(rainfall ~ year, data = rainfall_1)
+print(aov_rainfall_year)
+
 
 ```
+
+Repeated Measures ANOVA 
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+```s
+
+
 
