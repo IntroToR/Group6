@@ -21,6 +21,10 @@ install.packages("tidytuesdayR")
 ```{r}
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
 temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
+
+
+head(rainfall)
+head(temperature)
 ```
 ## Load all necessary libraries
 Be sure to install these packages on your computer if you have never done so before (ex: install.packages("lsmeans"))
@@ -31,39 +35,62 @@ library(multcomp)
 library(multcompView)
 library(tidyverse)
 library(lawstat)
+library(doBy)
 ```
 
 Add a column to rainfall data so the date is all in one column
 ```{r}
 rainfall$date <- paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = "")
-
 ```
 
 Filter the rainfall and temperature data so we are only working with variables from Jan 2008 to Dec 2018
 ```{r}
+temperature$city_name <- gsub("BRISBANE","Brisbane", temperature$city_name)
+temperature$city_name <- gsub("CANBERRA","Canberra", temperature$city_name)
+temperature$city_name <- gsub("MELBOURNE","Melbourne", temperature$city_name)
+temperature$city_name <- gsub("PERTH","Perth", temperature$city_name)
+temperature$city_name <- gsub("SYDNEY","Sydney", temperature$city_name)
+
+
 rainfall_1 <- rainfall %>% filter(date >= "2008-01-01", 
                                  date <= "2018-12-31")
+
+rainfall_2 <- rainfall_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
+
+
 temp_1 <- temperature %>% filter(date >= "2008-01-01", 
                                  date <= "2018-12-31")
-head(rainfall_1)
-head(temp_1)
+
+temp_2 <- temp_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
+
+temp_3 <- temp_2 %>% filter(temp_type == "max")
+temp_4 <- temp_2 %>% filter(temp_type == "min")
+
+```
+
+
+```{r}
+combined_max <- merge(rainfall_2, temp_3, by = c("city_name", "date"))
+combined_min <- merge(rainfall_2, temp_4, by = c("city_name", "date"))
+
+head(combined_max)
+head(combined_min)
 ```
 
 The ~ variables return the measurements by all combinations of var1 + var2, e.g. var1_1+var2_1, var1_2+var2_1, var1_1+var2_2, var1_2+var2_2. So, for individual variables where you want the measurements across all levels of the others, keep them separate.
 
 ```{r}
-library(doBy)
 
-summaryBy(temperature ~ temp_type + city_name, data = temp_1,
+summaryBy(temperature ~ temp_type + city_name, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
-summaryBy(rainfall ~ city_name, data = rainfall_1,
+summaryBy(rainfall ~ city_name, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
-summaryBy(rainfall ~ month, data = rainfall_1,
+summaryBy(rainfall ~ month, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
-summaryBy(rainfall ~ year, data = rainfall_1,
+summaryBy(rainfall ~ year, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
 ```
@@ -73,22 +100,22 @@ Simple One-Way Analysis of Variance ANOVA
 #### General format is:   fit <- aov(y ~ A, data=mydataframe) where y and A are variables in the mydataframe
 
 #ANOVA temperature and temp_type+city_name
-aov_temp_ttype_city <- aov(temperature ~ temp_type + city_name, data = temp_1)
+aov_temp_ttype_city <- aov(temperature ~ temp_type + city_name, data = combined)
 print(summary(aov_temp_ttype_city))
 cat("\n-------------------------------\n")
 
 #ANOVA rainfall and city_name
-aov_rainfall_city <- aov(rainfall ~ city_name, data = rainfall_1)
+aov_rainfall_city <- aov(rainfall ~ city_name, data = combined)
 print(summary(aov_rainfall_city))
 cat("\n-------------------------------\n")
 
 #ANOVA rainfall and month
-aov_rainfall_month <- aov(rainfall ~ month, data = rainfall_1)
+aov_rainfall_month <- aov(rainfall ~ month, data = combined)
 print(summary(aov_rainfall_month))
 cat("\n-------------------------------\n")
 
 #ANOVA rainfall and year
-aov_rainfall_year <- aov(rainfall ~ year, data = rainfall_1)
+aov_rainfall_year <- aov(rainfall ~ year, data = combined)
 print(summary(aov_rainfall_year))
 
 
