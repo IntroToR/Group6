@@ -40,7 +40,7 @@ library(doBy)
 
 Add a column to rainfall data so the date is all in one column
 ```{r}
-rainfall$date <- paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = "")
+rainfall$date <- as.Date(paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = ""))
 ```
 
 Filter the rainfall and temperature data so we are only working with variables from Jan 2008 to Dec 2018
@@ -67,8 +67,16 @@ temp_3 <- temp_2 %>% filter(temp_type == "max")
 temp_4 <- temp_2 %>% filter(temp_type == "min")
 
 ```
+rainfall_2$date is char  type
+and temp_3$date is date type 
 
+```{r}
+combined_both_temps_rainfall <- merge(rainfall_2, temp_2, by = c("city_name", "date"))
+head(combino_bambino)
+```
 
+### Remove this following chunk now?
+Might not need this anymore now that the Date format is figured out
 ```{r}
 combined_max <- merge(rainfall_2, temp_3, by = c("city_name", "date"))
 combined_min <- merge(rainfall_2, temp_4, by = c("city_name", "date"))
