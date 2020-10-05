@@ -63,26 +63,12 @@ temp_1 <- temperature %>% filter(date >= "2008-01-01",
 
 temp_2 <- temp_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
-temp_3 <- temp_2 %>% filter(temp_type == "max")
-temp_4 <- temp_2 %>% filter(temp_type == "min")
-
-```
-rainfall_2$date is char  type
-and temp_3$date is date type 
-
-```{r}
-combined_both_temps_rainfall <- merge(rainfall_2, temp_2, by = c("city_name", "date"))
-head(combino_bambino)
 ```
 
-### Remove this following chunk now?
-Might not need this anymore now that the Date format is figured out
-```{r}
-combined_max <- merge(rainfall_2, temp_3, by = c("city_name", "date"))
-combined_min <- merge(rainfall_2, temp_4, by = c("city_name", "date"))
 
-head(combined_max)
-head(combined_min)
+```{r}
+combined <- merge(rainfall_2, temp_2, by = c("city_name", "date"))
+head(combined)
 ```
 
 The ~ variables return the measurements by all combinations of var1 + var2, e.g. var1_1+var2_1, var1_2+var2_1, var1_1+var2_2, var1_2+var2_2. So, for individual variables where you want the measurements across all levels of the others, keep them separate.
@@ -98,8 +84,15 @@ summaryBy(rainfall ~ city_name, data = combined,
 summaryBy(rainfall ~ month, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
+summaryBy(temperature ~ month + temp_type, data = combined,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
 summaryBy(rainfall ~ year, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
+summaryBy(temperature ~ year + temp_type, data = combined,
+  FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
+
 
 ```
 
@@ -108,8 +101,8 @@ Simple One-Way Analysis of Variance ANOVA
 #### General format is:   fit <- aov(y ~ A, data=mydataframe) where y and A are variables in the mydataframe
 
 #ANOVA temperature and temp_type+city_name
-aov_temp_ttype_city <- aov(temperature ~ temp_type + city_name, data = combined)
-print(summary(aov_temp_ttype_city))
+aov_temp_type_city <- aov(temperature ~ temp_type + city_name, data = combined)
+print(summary(aov_temp_type_city))
 cat("\n-------------------------------\n")
 
 #ANOVA rainfall and city_name
@@ -122,13 +115,45 @@ aov_rainfall_month <- aov(rainfall ~ month, data = combined)
 print(summary(aov_rainfall_month))
 cat("\n-------------------------------\n")
 
+#ANOVA temperature and temp_type+month
+aov_temp_type_month <- aov(temperature ~ temp_type + month, data = combined)
+print(summary(aov_temp_type_month))
+cat("\n-------------------------------\n")
+
 #ANOVA rainfall and year
 aov_rainfall_year <- aov(rainfall ~ year, data = combined)
 print(summary(aov_rainfall_year))
 
-
+#ANOVA temperature and temp_type+year
+aov_temp_type_year <- aov(temperature ~ temp_type + year, data = combined)
+print(summary(aov_temp_type_year))
+cat("\n-------------------------------\n")
 ```
 
+```{r}
+library(ggplot2)
+ggplot(data = combined) +
+  geom_point(mapping = aes(x = temperature, y = rainfall, color = temp_type))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = year, y = rainfall))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = year, y = temperature, color = temp_type))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = month, y = rainfall))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = month, y = temperature, color = temp_type))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = city_name, y = rainfall))
+
+ggplot(data = combined) +
+  geom_col(mapping = aes(x = city_name, y = temperature, color = temp_type))
+
+```
 
 
 
