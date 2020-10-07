@@ -19,6 +19,12 @@ install.packages("tidytuesdayR")
 #Pull Data
 
 ```{r}
+modis_firedata <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/MODIS_C6_Australia_and_New_Zealand_7d.csv')
+
+```
+
+
+```{r}
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
 temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
 
@@ -51,14 +57,13 @@ temperature$city_name <- gsub("MELBOURNE","Melbourne", temperature$city_name)
 temperature$city_name <- gsub("PERTH","Perth", temperature$city_name)
 temperature$city_name <- gsub("SYDNEY","Sydney", temperature$city_name)
 
-
-rainfall_1 <- rainfall %>% filter(date >= "2008-01-01", 
+rainfall_1 <- rainfall %>% filter(date >= "1900-01-01", 
                                  date <= "2018-12-31")
 
 rainfall_2 <- rainfall_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
 
-temp_1 <- temperature %>% filter(date >= "2008-01-01", 
+temp_1 <- temperature %>% filter(date >= "1900-01-01", 
                                  date <= "2018-12-31")
 
 temp_2 <- temp_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
@@ -94,6 +99,81 @@ summaryBy(temperature ~ year + temp_type, data = combined,
   FUN = function(x) { c(average = mean(x, na.rm = T), standard_deviation = sd(x, na.rm = T), maximum = max(x, na.rm = T), minimum = min(x, na.rm = T)) } )
 
 
+```
+
+___Max and Min made into their own columns with temperature values and charting both rainfall and temperature values monthly___
+```{r}
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+combined$date_2 <- as.Date(paste(combined$year,"-",combined$month,"-",1, sep = ""))
+
+combined_wider <- pivot_wider(data=combined, names_from = temp_type, values_from = temperature)
+
+combined_avg_rt <- aggregate(. ~city_name+date_2,data = combined_wider[, c("rainfall","max","min","city_name","date_2")], mean)
+
+p1<-ggplot(data = combined_avg_rt) +
+  geom_point(mapping = aes(y = rainfall, x = date_2),size=0.5, colour="blue")+
+  geom_point(mapping = aes(y=min/1.5, x = date_2),size=0.001,alpha=0.75, colour="red") +
+  geom_point(mapping = aes(y=max/1.5, x = date_2),size=0.001,alpha=0.75, colour="black") +
+  scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
+  facet_grid(rows = vars(city_name))+
+  scale_x_date(date_breaks = "2 years" , date_labels = "%y")+
+labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
+p1+theme(axis.text.x = element_text(angle = 90))
+
+```
+
+___Max and Min made into their own columns with temperature values___
+```{r}
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+combined_wider <- pivot_wider(data=combined, names_from = temp_type, values_from = temperature)
+
+combined_avg_rt <- aggregate(. ~city_name+year,data = combined_wider[, c("rainfall","max","min","city_name","year")], mean)
+
+p1<-ggplot(data = combined_avg_rt) +
+  geom_point(mapping = aes(y = rainfall, x = year),size=0.5, colour="blue")+
+  geom_point(mapping = aes(y=min/1.5, x = year),size=0.001,alpha=0.75, colour="red") +
+  geom_point(mapping = aes(y=max/1.5, x = year),size=0.001,alpha=0.75, colour="black") +
+  scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
+  facet_grid(rows = vars(city_name))+
+  scale_x_continuous(breaks=1)+
+  #scale_x_date(date_breaks = "2 years" , date_labels = "%y")+
+labs(x="Year",title = "Average Yearly Rainfall and Max/Min Temperatures")
+p1#+theme(axis.text.x = element_text(angle = 90))
+
+```
+
+Normality and HOV Tests of Data
+```{r}
+install.packages("olsrr")
+install.packages("onewaytests")
+```
+
+Test for Normality
+```{r}
+library(olsrr)
+library(onewaytests)
+
+#To use date, need to use as.numeric(date) 
+### RAINFALL BY MONTH
+# Normality Test: Shapiro-Wilks
+sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
+model <- lm(rainfall ~ month, sydney_only_reduced)
+ols_plot_resid_qq(model)
+ols_test_normality(model)
+
+#HOV Test: Brown-Forsythe test
+res <- bf.test(rainfall ~ month, data = sydney_only_reduced)
+res
+
+#res <- var.test(rainfall ~ year, data = syndey_only) #doesn't work because factors have more than 2 levles
+#res
 ```
 
 Simple One-Way Analysis of Variance ANOVA 
@@ -134,6 +214,7 @@ cat("\n-------------------------------\n")
 library(ggplot2)
 ggplot(data = combined) +
   geom_point(mapping = aes(x = temperature, y = rainfall, color = temp_type))
+  #facet_grid(city_name~year)
 
 ggplot(data = combined) +
   geom_col(mapping = aes(x = year, y = rainfall))
@@ -149,11 +230,16 @@ ggplot(data = combined) +
 
 ggplot(data = combined) +
   geom_col(mapping = aes(x = city_name, y = rainfall))
+  #facet_grid(~year)
 
 ggplot(data = combined) +
-  geom_col(mapping = aes(x = city_name, y = temperature, color = temp_type))
+  geom_col(mapping = aes(x = month, y = temperature, color = temp_type))
+  #facet_grid(~city_name)
 
 ```
+
+
+
 
 
 
