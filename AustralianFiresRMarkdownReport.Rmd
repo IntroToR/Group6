@@ -108,43 +108,27 @@ library(dplyr)
 library(patchwork)
 
 combined$date_2 <- as.Date(paste(combined$year,"-",combined$month,"-",1, sep = ""))
+combined$date_3 <- as.Date(paste(combined$year,"-",1,"-",1, sep = ""))
+```
 
+
+```{r}
 combined_wider <- pivot_wider(data=combined, names_from = temp_type, values_from = temperature)
+names(combined_wider)[names(combined_wider) == "max"] <- "max_temperature"
+names(combined_wider)[names(combined_wider) == "min"] <- "min_temperature"
 
-combined_avg_rt <- aggregate(. ~city_name+date_2,data = combined_wider[, c("rainfall","max","min","city_name","date_2")], mean)
+
+combined_avg_rt <- aggregate(. ~city_name+date_2,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_2")], mean)
 
 p1<-ggplot(data = combined_avg_rt) +
   geom_point(mapping = aes(y = rainfall, x = date_2),size=0.5, colour="blue")+
-  geom_point(mapping = aes(y=min/1.5, x = date_2),size=0.001,alpha=0.75, colour="red") +
-  geom_point(mapping = aes(y=max/1.5, x = date_2),size=0.001,alpha=0.75, colour="black") +
+  geom_point(mapping = aes(y=min_temperature/1.5, x = date_2),size=0.001,alpha=0.75, colour="red") +
+  geom_point(mapping = aes(y=max_temperature/1.5, x = date_2),size=0.001,alpha=0.75, colour="black") +
   scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
   facet_grid(rows = vars(city_name))+
-  scale_x_date(date_breaks = "2 years" , date_labels = "%y")+
+  scale_x_date(date_breaks = "4 years" , date_labels = "%Y")+
 labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
 p1+theme(axis.text.x = element_text(angle = 90))
-
-```
-
-___Max and Min made into their own columns with temperature values___
-```{r}
-library(ggplot2)
-library(dplyr)
-library(patchwork)
-
-combined_wider <- pivot_wider(data=combined, names_from = temp_type, values_from = temperature)
-
-combined_avg_rt <- aggregate(. ~city_name+year,data = combined_wider[, c("rainfall","max","min","city_name","year")], mean)
-
-p1<-ggplot(data = combined_avg_rt) +
-  geom_point(mapping = aes(y = rainfall, x = year),size=0.5, colour="blue")+
-  geom_point(mapping = aes(y=min/1.5, x = year),size=0.001,alpha=0.75, colour="red") +
-  geom_point(mapping = aes(y=max/1.5, x = year),size=0.001,alpha=0.75, colour="black") +
-  scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
-  facet_grid(rows = vars(city_name))+
-  scale_x_continuous(breaks=1)+
-  #scale_x_date(date_breaks = "2 years" , date_labels = "%y")+
-labs(x="Year",title = "Average Yearly Rainfall and Max/Min Temperatures")
-p1#+theme(axis.text.x = element_text(angle = 90))
 
 ```
 
@@ -154,7 +138,7 @@ install.packages("olsrr")
 install.packages("onewaytests")
 ```
 
-Test for Normality
+ANOVA
 ```{r}
 library(olsrr)
 library(onewaytests)
@@ -162,7 +146,9 @@ library(onewaytests)
 #To use date, need to use as.numeric(date) 
 ### RAINFALL BY MONTH
 # Normality Test: Shapiro-Wilks
-sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
+sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
 sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
 model <- lm(rainfall ~ month, sydney_only_reduced)
 ols_plot_resid_qq(model)
@@ -170,13 +156,54 @@ ols_test_normality(model)
 
 #HOV Test: Brown-Forsythe test
 res <- bf.test(rainfall ~ month, data = sydney_only_reduced)
-res
-
-#res <- var.test(rainfall ~ year, data = syndey_only) #doesn't work because factors have more than 2 levles
 #res
+
+#res <- var.test(rainfall ~ year, data = sydney_only_reduced) #doesn't work because factors have more than 2 levles
+#res
+
+#Anova table
+anova(model)
+
+
+
+
+### MAX TEMP BY MONTH
+# Normality Test: Shapiro-Wilks
+#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
+sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
+sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
+model <- lm(max ~ month, sydney_only_reduced)
+ols_plot_resid_qq(model)
+ols_test_normality(model)
+
+#HOV Test: Brown-Forsythe test
+res <- bf.test(max ~ month, data = sydney_only_reduced)
+
+#Anova table
+anova(model)
+
+
+
+
+### MIN TEMP BY MONTH
+# Normality Test: Shapiro-Wilks
+#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
+sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
+sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
+model <- lm(min ~ month, sydney_only_reduced)
+ols_plot_resid_qq(model)
+ols_test_normality(model)
+
+#HOV Test: Brown-Forsythe test
+res <- bf.test(min ~ month, data = sydney_only_reduced)
+
+#Anova table
+anova_table<-anova(model)
 ```
 
-Simple One-Way Analysis of Variance ANOVA 
+___Simple One-Way Analysis of Variance ANOVA___ combined this with above??? or remove this???? 
 ```{r}
 #### General format is:   fit <- aov(y ~ A, data=mydataframe) where y and A are variables in the mydataframe
 
@@ -210,6 +237,7 @@ print(summary(aov_temp_type_year))
 cat("\n-------------------------------\n")
 ```
 
+What graphs do we want to keep from here?
 ```{r}
 library(ggplot2)
 ggplot(data = combined) +
