@@ -2,7 +2,9 @@
 title: "Group 6 R Project"
 author: "Beau Barber"
 date: "9/18/2020"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -11,18 +13,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #Install tidytuesday package
 ```{r}
-install.packages("tidytuesdayR")
+install.packages("tidytuesdayR", repos = "http://cran.us.r-project.org")
 ```
 
 
 
 #Pull Data
-
-```{r}
-modis_firedata <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/MODIS_C6_Australia_and_New_Zealand_7d.csv')
-
-```
-
 
 ```{r}
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
@@ -47,6 +43,11 @@ library(doBy)
 Add a column to rainfall data so the date is all in one column
 ```{r}
 rainfall$date <- as.Date(paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = ""))
+
+
+rainfall %>%
+  dplyr::mutate(thisvariable = lat+long) %>% ###NOTE TO SELF THAT I FORGOT. MUTATATE IS ONLY TEMPORARY UNLESS YOU EXPLICITLY SAVE OUTPUT
+  arrange(rainfall)
 ```
 
 Filter the rainfall and temperature data so we are only working with variables from Jan 2008 to Dec 2018
@@ -57,15 +58,15 @@ temperature$city_name <- gsub("MELBOURNE","Melbourne", temperature$city_name)
 temperature$city_name <- gsub("PERTH","Perth", temperature$city_name)
 temperature$city_name <- gsub("SYDNEY","Sydney", temperature$city_name)
 
-rainfall_1 <- rainfall %>% filter(date >= "1900-01-01", 
+rainfall_1 <- rainfall %>% filter(date >= "1967-01-01", 
                                  date <= "2018-12-31")
 
 rainfall_2 <- rainfall_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
 
-temp_1 <- temperature %>% filter(date >= "1900-01-01", 
+temp_1 <- temperature %>% filter(date >= "1967-01-01", 
                                  date <= "2018-12-31")
-
+#I think this can be piped 
 temp_2 <- temp_1 %>% filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
 ```
@@ -107,8 +108,8 @@ library(ggplot2)
 library(dplyr)
 library(patchwork)
 
-combined$date_2 <- as.Date(paste(combined$year,"-",combined$month,"-",1, sep = ""))
-combined$date_3 <- as.Date(paste(combined$year,"-",1,"-",1, sep = ""))
+combined$date_2 <- as.Date(paste(combined$year,"-",combined$month,"-",1, sep = "")) #makes charting the dates by month easier
+combined$date_3 <- as.Date(paste(combined$year,"-",1,"-",1, sep = ""))#makes charting the dates by month easier
 ```
 
 
@@ -126,7 +127,7 @@ p1<-ggplot(data = combined_avg_rt) +
   geom_point(mapping = aes(y=max_temperature/1.5, x = date_2),size=0.001,alpha=0.75, colour="black") +
   scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
   facet_grid(rows = vars(city_name))+
-  scale_x_date(date_breaks = "4 years" , date_labels = "%Y")+
+  scale_x_date(date_breaks = "years" , date_labels = "%Y")+
 labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
 p1+theme(axis.text.x = element_text(angle = 90))
 
@@ -146,10 +147,23 @@ library(onewaytests)
 #To use date, need to use as.numeric(date) 
 ### RAINFALL BY MONTH
 # Normality Test: Shapiro-Wilks
-#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
+combined_wider$month <- as.factor(combined_wider$month) #had to coerce to a factor
+combined_wider$year <- as.factor(combined_wider$year) #had to coerce to a factor
+combined_wider$city_name <- as.factor(combined_wider$city_name) #had to coerce to a factor
+
+sydney_temp_rainfall <- combined_wider %>%
+  filter(city_name == "Sydney") %>%
+  mutate(id=row_number()) %>%
+  filter(id %% ceiling(max(c(id))/5000)  == 1)   #n() when used in dpylr is the "count number of observations in the current group
+model <- lm(rainfall ~ city_name, sydney_and_perth)
+ols_plot_resid_qq(model)
+ols_test_normality(model)
+
+#HOV Test: Brown-Forsythe test
+res <- bf.test(rainfall ~ month, data = sydney_only_reduced)
+
 sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
-sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
-sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
+sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),] # lm can only accept up to 5000 observations
 model <- lm(rainfall ~ month, sydney_only_reduced)
 ols_plot_resid_qq(model)
 ols_test_normality(model)
@@ -170,8 +184,6 @@ anova(model)
 ### MAX TEMP BY MONTH
 # Normality Test: Shapiro-Wilks
 #sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
-sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
-sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
 sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
 model <- lm(max ~ month, sydney_only_reduced)
 ols_plot_resid_qq(model)
@@ -188,9 +200,6 @@ anova(model)
 
 ### MIN TEMP BY MONTH
 # Normality Test: Shapiro-Wilks
-#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
-sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
-sydney_only$month <- as.factor(sydney_only$month) #had to coerce to a factor
 sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
 model <- lm(min ~ month, sydney_only_reduced)
 ols_plot_resid_qq(model)
