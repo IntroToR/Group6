@@ -1,26 +1,28 @@
 ---
 title: "Group 6 R Project"
-author: "Beau Barber"
-date: "9/18/2020"
+author: "Beau Barber, Jadelyn Stewart, Katherine Vande Pol, and Rafael Gonzalez"
+date: "10/12/2020"
 output:
   html_document: default
-  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Install tidytuesday package
-```{r}
-install.packages("tidytuesdayR", repos = "http://cran.us.r-project.org") #in order install.package to be in code you might have to include repo="repo source"
-install.packages("olsrr", repos = "http://cran.us.r-project.org")
-install.packages("onewaytests", repos = "http://cran.us.r-project.org")
-```
+**Introduction**
 
+Australia has one of the most variable climates of all countries in the world. One of the main causes of this phenomenon is due to the effect that mankind has had on global warming (Australian Government-Bureau of Meteorology, 2020), which is reflected in annual increases of more than one degree since 1910, with a peak in the 1950s. Within the same line of evidence (Potgieter, 2013), these fluctuations could also be attributed to a climatic phenomenon called El Niño, which is a climate phenomenon associated with the erratic heating of the eastern pacific continent every 3 to 7 years.  
 
+Furthermore, it can be seen that the mean temperature anomaly shows a turning point in the 1980s, accompanied by an irreversible increase in temperature recorded to date. The latter can be evidenced in the Bureau of Meteorology database (Australian Government-Bureau of Meteorology, 2020), where the last record of average mean temperature and mean maximum temperatures made in 2019 throughout the Australian territory, was 1.52°C and 2.09°C above average, respectively. Both measurements are above the average of temperatures recorded between the range of years 1961-1990, as well as higher than the previous peak, observed in 2013.   
 
-#Pull Data
+Regarding rainfall quantity, the fluctuations do not seem to follow the same linear pattern as those observed in temperature. They appear to be randomly dependent at each period, with a marked relationship with periods of extreme drought recorded by the Bureau of Meteorology (Australian Government-Bureau of Meteorology, 2020). However, 2019 also turned out to be a record year for droughts, registering a rainfall level of 277.6 mm, which was well below the previously recorded record (314.5 mm). In addition, 2019 showed an average rainfall of 40% lower than the average reported between 1961 and 1990 (Australian Government-Bureau of Meteorology, 2020). 
+
+Based on these reports, temperature seems to have been linearly increasing since the 1950s, while rainfall appears to follow a random pattern. Therefore, in this paper we propose to provide a statistical analysis of the changes in temperature and rainfall, reported in five cities across Australia, during the years of 2008 to 2018, as well as an extended analysis of Sidney and Perth (cities on the opposite sides of the continent) over the years of 1970 to 2018. Effects of city, month, and year will be evaluated singly and in various combinations for temperature (maximum and minimum) and rainfall.
+
+**Data setup**
+
+First, the data sets to be used must be imported from the source (TidyTuesday) and read into R. The head (first 10 lines) of these data sets were printed to check that the data was imported correctly, and to check for any issues.
 
 ```{r}
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
@@ -30,8 +32,9 @@ temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascienc
 head(rainfall)
 head(temperature)
 ```
-## Load all necessary libraries
-Be sure to install these packages on your computer if you have never done so before (ex: install.packages("lsmeans"))
+**Libraries**
+
+Several R packages were used for the data analysis, and must be loaded into R before running the later code. The packages must be installed before they can be brought in using the "library" function, so be sure to install these packages if you have never done so before (ex: install.packages("lsmeans")).
 ```{r}
 library(lmerTest)
 library(lsmeans)
@@ -45,14 +48,19 @@ library(dplyr)
 library(patchwork)
 library(olsrr)
 library(onewaytests)
+library(tidytuesdayR)
+library(olsrr)
+library(onewaytests)
+library(nortest)
 ```
+**Filtering and data set combination**
 
-Add a column to rainfall data so the date is all in one column as one date string
+The dates in the temperature and rainfall data sets are in different formats, so before the data sets can be combined, a column must be added to the rainfall data such that the date is all in one column as one date string:
 ```{r}
-rainfall$date <- as.Date(paste(rainfall$year,"-",rainfall$month,"-",rainfall$day, sep = ""))
+rainfall$date <- as.Date(paste(rainfall$year, "-", rainfall$month, "-", rainfall$day, sep = ""))
 ```
 
-Filter the rainfall and temperature data so we are only working with variables from Jan 1967 to Dec 2018
+The city names in the two data sets are also capitalized differently, so the city names in the temperature data set must be replaced with such that they match (using the gsub option). The data sets also have differing date ranges, and must be filtered such that only the years of interest are included (Jan 1970 to Dec 2018). In addition, some cities are not included in both data sets, so only cities that are included in both were selected using the filter option as well.
 ```{r}
 # Change the capitalization of city_names in temperature to match rainfall city_name case
 temperature$city_name <- gsub("BRISBANE","Brisbane", temperature$city_name)
@@ -60,26 +68,30 @@ temperature$city_name <- gsub("CANBERRA","Canberra", temperature$city_name)
 temperature$city_name <- gsub("MELBOURNE","Melbourne", temperature$city_name)
 temperature$city_name <- gsub("PERTH","Perth", temperature$city_name)
 temperature$city_name <- gsub("SYDNEY","Sydney", temperature$city_name)
+head(temperature)
 
-
-# Filter data from 1967 to 2018, for cities that have BOTH rainfall and temperature data
+# Filter data from 1970 to 2018, for cities that have BOTH rainfall and temperature data
 rainfall_1 <-  rainfall %>%
   filter(date >= "1970-01-01", date <= "2018-12-31") %>%
   filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
+head(rainfall_1)
 
 temp_1 <- temperature %>%
-  filter(date >= "1970-01-01", date <= "201-12-31") %>%
+  filter(date >= "1970-01-01", date <= "2018-12-31") %>%
   filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
+head(temp_1)
 
 ```
 
-Combine rainfall and temperature into one dataframe
+Now that the two data sets have the same cities, dates, and formats, they can be combined into one data frame using the merge option. 
 ```{r}
 combined <- merge(rainfall_1, temp_1, by = c("city_name", "date"))
 head(combined)
 ```
 
-The ~ variables return the measurements by all combinations of var1 + var2, e.g. var1_1+var2_1, var1_2+var2_1, var1_1+var2_2, var1_2+var2_2. So, for individual variables where you want the measurements across all levels of the others, keep them separate.
+**Descriptive statistics**
+
+For an initial look at the data for the parameters of interest, the mean, standard deviation, maximum, and minimum have been calculated below. These include the temperature (as the maximum and minimum) and rainfall for each city, and the temperature (as the maximum and minimum) and rainfall by month and by year for all cities.
 
 ```{r}
 
@@ -104,100 +116,79 @@ summaryBy(temperature ~ year + temp_type, data = combined,
 
 ```
 
-___Max and Min made into their own columns with temperature values and charting both rainfall and temperature values monthly___
+**Temperature and rainfall plots**
+
+For a further initial evaluation of the data, the temperature and rainfall have been plotted for each city across time. Since temperature is not an average, but is reported as the maximum and minimum for each date, the first step was to use the pivot_wider function to separate these into different columns such that they could be plotted separately.
 ```{r}
-combined$date_monthly <- as.Date(paste(combined$year,"-",combined$month,"-",1, sep = "")) #makes charting the dates by month easier
-combined$date_yearly <- as.Date(paste(combined$year,"-",1,"-",1, sep = ""))#makes charting the dates on the x-axis by year easier
+combined$date_monthly <- as.Date(paste(combined$year, "-", combined$month, "-", 1, sep = ""))
+combined$date_yearly <- as.Date(paste(combined$year, "-", 1, "-", 1, sep = ""))
 
-
-combined_wider <- na.omit(pivot_wider(data=combined, names_from = temp_type, values_from = temperature))
+combined_wider <- na.omit(pivot_wider(data = combined, names_from = temp_type, values_from = temperature))
 names(combined_wider)[names(combined_wider) == "max"] <- "max_temperature"
 names(combined_wider)[names(combined_wider) == "min"] <- "min_temperature"
 
 ```
 
-___Timeline of Rainfall, Max Temperature, and Min Temperature for each Australian City___
+Next, the data were plotted by monthly average and yearly average.
 ```{r}
 #Monthly Average Timeline
-combined_avg_rt <- aggregate(. ~city_name+date_monthly,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_monthly")], mean)
+combined_avg_rt <- aggregate(. ~city_name + date_monthly, data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_monthly")], mean)
 
-p1<-ggplot(data = combined_avg_rt) +
-  geom_bar(mapping = aes(y = rainfall, x = date_monthly),size=0.25, colour="NA", fill="dodgerblue",stat="identity")+
-  geom_point(mapping = aes(y=min_temperature/0.5, x = date_monthly),size=0.05,alpha=0.75, colour="black") +
-  geom_point(mapping = aes(y=max_temperature/0.5, x = date_monthly),size=0.05,alpha=0.75, colour="red") +
-  scale_y_continuous(name = ("Rainfall (blue)"), limit=c(-5,65),sec.axis = sec_axis(~.*0.5,name="Temperature (Max=red, Min=black)"))+
+p1 <- ggplot(data = combined_avg_rt) +
+  geom_bar(mapping = aes(y = rainfall, x = date_monthly), size = 0.25, colour = "NA", fill = "dodgerblue",stat = "identity") +
+  geom_point(mapping = aes(y = min_temperature/0.5, x = date_monthly), size = 0.05, alpha = 0.75, colour = "black") +
+  geom_point(mapping = aes(y = max_temperature/0.5, x = date_monthly),size = 0.05, alpha = 0.75, colour = "red") +
+  scale_y_continuous(name = ("Rainfall (blue)"), limit = c(-5,65),sec.axis = sec_axis(~.*0.5,name = "Temperature (Max=red, Min=black)")) +
   facet_grid(rows = vars(city_name))+
-  scale_x_date(date_breaks = "years" , date_labels = "%Y")+
-labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
-p1+theme(axis.text.x = element_text(angle = 90))
+  scale_x_date(date_breaks = "years" , date_labels = "%Y") +
+labs(x = "Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
+p1 + theme(axis.text.x = element_text(angle = 90))
 
 
 #Yearly Average Timeline
-combined_avg_rt <- aggregate(. ~city_name+date_yearly,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_yearly")], mean)
+combined_avg_rt <- aggregate(. ~city_name+date_yearly, data = combined_wider[, c("rainfall", "max_temperature", "min_temperature", "city_name", "date_yearly")], mean)
 
-p1<-ggplot(data = combined_avg_rt) +
-  geom_bar(mapping = aes(y = rainfall, x = date_yearly),size=0.05, colour="NA", fill="dodgerblue", stat="identity")+
-  geom_point(mapping = aes(y=min_temperature/0.75, x = date_yearly),size=0.05,alpha=0.75, colour="black") +
-  geom_point(mapping = aes(y=max_temperature/0.75, x = date_yearly),size=0.05,alpha=0.75, colour="red") +
-  scale_y_continuous(name = ("Rainfall (blue)"), limit=c(-5,65),sec.axis = sec_axis(~.*0.75,name="Temperature (Max=red, Min=black)"))+
-  facet_grid(rows = vars(city_name))+
-  scale_x_date(date_breaks = "years" , date_labels = "%Y")+
-labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
-p1+theme(axis.text.x = element_text(angle = 90))
+p1 <- ggplot(data = combined_avg_rt) +
+  geom_bar(mapping = aes(y = rainfall, x = date_yearly), size = 0.05, colour = "NA", fill = "dodgerblue", stat = "identity") +
+  geom_point(mapping = aes(y = min_temperature/0.75, x = date_yearly), size = 0.05, alpha = 0.75, colour = "black") +
+  geom_point(mapping = aes(y = max_temperature/0.75, x = date_yearly), size = 0.05, alpha = 0.75, colour = "red") +
+  scale_y_continuous(name = ("Rainfall (blue)"), limit = c(-5,65), sec.axis = sec_axis(~.*0.75, name = "Temperature (Max = red, Min = black)")) +
+  facet_grid(rows = vars(city_name)) +
+  scale_x_date(date_breaks = "years" , date_labels = "%Y") +
+labs(x = "Year", title = "Average Monthly Rainfall and Max/Min Temperatures")
+p1 + theme(axis.text.x = element_text(angle = 90))
 ```
-NOTE: Perth and Sydney have the only complete timelines to about 1970. Canberra only goes as far back as about 2008. Melbourne covers 1970 to 1993 and 1999-2018, and Brisbane covers 1972-1994 and 1999-2018.
+As can be seen in the graphs above, Perth and Sydney are the only cities with data for all years from 1970 to 2018. Therefore, these 2 cities were subsequently used for analysis of climate change over the entire period, and the other cities were only included to evaluate differences between cities over a single decade (2008 to 2018).
 
 
-___Find which time periods (by year at least) have all of the combined data for each city for each time point (besides Canberra)___
+The following intersections were calculated to verify the time lines for which all data was available for each city.
 ```{r}
 combined_wider_1 <- na.omit(combined_wider)
-intsct1 <- intersect(unique(combined_wider_1[combined_wider_1$city_name=="Perth","date_yearly"]),unique(combined_wider_1[combined_wider_1$city_name=="Sydney","date_yearly"]))
+intsct1 <- intersect(unique(combined_wider_1[combined_wider_1$city_name == "Perth","date_yearly"]), unique(combined_wider_1[combined_wider_1$city_name == "Sydney","date_yearly"]))
 
-intsct2 <- intersect(unique(combined_wider_1[combined_wider_1$city_name=="Brisbane","date_yearly"]),unique(combined_wider_1[combined_wider_1$city_name=="Melbourne","date_yearly"]))
+intsct2 <- intersect(unique(combined_wider_1[combined_wider_1$city_name == "Brisbane","date_yearly"]), unique(combined_wider_1[combined_wider_1$city_name == "Melbourne","date_yearly"]))
 
-intersected_years<-intersect(intsct2,intsct1)
+intersected_years <- intersect(intsct2, intsct1)
 
-temp_var<-as.data.frame(diff(as.numeric(intersected_years$date_yearly)),col.names="values")
-colnames(temp_var)<-"values"
+temp_var <- as.data.frame(diff(as.numeric(intersected_years$date_yearly)), col.names = "values")
+colnames(temp_var) <- "values"
 ind_gap <- which.max(temp_var$values) #largest value will be the year the first period ends. The value indexed after that (ind_gap+1) is start of next period
 
-print(paste("Period 1: ",substr(intersected_years$date_yearly[1],start=1,stop=4),"-",substr(intersected_years$date_yearly[ind_gap],start=1,stop=4),sep=""))
-print(paste("Period 2: ",substr(intersected_years$date_yearly[ind_gap+1],start=1,stop=4),"-",substr(tail(intersected_years$date_yearly, n=1),start=1,stop=4),sep=""))
+print(paste("Period 1: ", substr(intersected_years$date_yearly[1], start = 1, stop = 4), "-", substr(intersected_years$date_yearly[ind_gap], start = 1, stop = 4), sep = ""))
+print(paste("Period 2: ", substr(intersected_years$date_yearly[ind_gap + 1], start = 1, stop = 4), "-", substr(tail(intersected_years$date_yearly, n = 1), start = 1, stop = 4), sep = ""))
 ```
-So we can either test Melbourne, Perth, Sydney, and Brisbane for these two time periods OR we can just take Sydney and Perth for 1970-2018. Perth and Sydney are on opposite sides of the continent (east and west coasts respectively). Brisbane is more north on the east coast and Melbourne is furthest south on othe east coast (Sydney is between those cities on the east coast.
+Based on these results, Perth and Sydney were selected for the climate change analysis. In addition, these cities are on opposite sides of the continent (east and west coasts respectively), whereas the other cities are relatively close to Sidney.
 
-Get rid of this chunk below?
+**Normality, HOV, AND ANOVA**
+
+Since the analysis of variance (ANOVA), homogeneity of variance (HOV) of the residuals, and normality of the residuals were to be used multiple times for analyses of various factors, a function was created below to conduct all of these steps with one command rather than writing a very long script.
 ```{r}
-#To use date, need to use as.numeric(date) 
-### RAINFALL BY MONTH
-combined_wider$month <- as.numeric(combined_wider$month) #had to coerce to a factor
-combined_wider$year <- as.numeric(combined_wider$year) #had to coerce to a factor
-combined_wider$city_name <- as.factor(combined_wider$city_name) #had to coerce to a factor
-
-#==========We can eliminate the rest of this block of code below if we just use a one-sample Kolmogorov-Smirnov test or the Anderson-Darling test (Anderson-Darling might be a more appropriate one to use)
-#Need to reduce each city (and remove Canberra) to make the total dataframe less than 5000 overall (but roughly equal amounts for each individual cities)
-reduced_sizes_overall <- combined_wider %>%
-  filter(city_name != "Canberra") %>%
-  slice(seq(1, n(), by = 2)) #Have to reduce to at least 5000 observations in order to be used for Shapiro-Wilk tests
-reduced_sizes_overall %>% count(city_name)
-
-#Need to reduce each city (and remove Canberra) to less than 5000 for each individual city for Shapiro-Wilk test
-reduced_sizes_each_city <- combined_wider %>%
-  filter(city_name != "Canberra") %>%
-  group_by(city_name) %>%
-  slice(seq(1, n(), by = 2)) #Have to reduce to at least 5000 observations in order to be used for normality tests
-reduced_sizes_each_city %>% count(city_name)
-```
-
-#NORMALITY, HOV, AND ANOVA
-Rather than continously call the same several lines of code over and over and over, I'm going to make a function instead that I can use several times instead to reduce the overall lines of code and save everyone (especially myself) some sanity
-```{r}
-Run_Normality_HOV_ANOVA_LinearReg_LinearReg<-function(y_input,factor_input,dataframe_name){
-model <- lm(y_input ~ factor_input,data=dataframe_name)
+Run_Normality_HOV_ANOVA_LinearReg <- function(y_input, factor_input, dataframe_name){
+model <- lm(y_input ~ factor_input, data = dataframe_name)
 ols_plot_resid_qq(model)
 ols_plot_resid_fit(model)
 #Anderson-Darling Normality Test
-ad_out<-ad.test(model$residuals) #Normality
+ad_out <- ad.test(model$residuals) #Normality
 print(ad_out)
 cat("\n-------------------------------\n\n")
 
@@ -215,25 +206,15 @@ summary(model)
 NOTE: Input has to be put in as
 > Run_Normality_HOV_ANOVA_LinearReg(dataframe$response_columnname,dataframe$group_columnname,dataframe)
 
-___Interactions with Cities of Sydney and Perth___
+Next, this function was used to conduct an analysis for the effects of city on temperature (maximum and minimum) and rainfall for all times within 2008 to 2018, and to compare Sidney and Perth specifically across all times from 1970 to 2018 by year.
 ```{r}
 combined_wider$month <- as.numeric(combined_wider$month) 
 combined_wider$year <- as.numeric(combined_wider$year) 
-combined_wider$city_name <- as.factor(combined_wider$city_name) #had to coerce to a factor
-
-#=== Looking at all cities from all times ===
-
-#Rainfall and City
-Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$rainfall,combined_wider$city_name,combined_wider)
-
-#Max Temperature and City
-Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$max_temperature,combined_wider$city_name,combined_wider)
-
-#Min Temperature and City
-Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$min_temperature,combined_wider$city_name,combined_wider)
+combined_wider$city_name <- as.factor(combined_wider$city_name)
 
 #==== Looking at all cities from 2008 - 2018====
 Current_period <- combined_wider %>% filter(date >= "2008-01-01", date <= "2018-12-31")
+
 #Rainfall and Year 
 Run_Normality_HOV_ANOVA_LinearReg(Current_period$rainfall,Current_period$year,Current_period)
 
@@ -243,10 +224,9 @@ Run_Normality_HOV_ANOVA_LinearReg(Current_period$max_temperature,Current_period$
 #Max Temperature and Year 
 Run_Normality_HOV_ANOVA_LinearReg(Current_period$min_temperature,Current_period$year,Current_period)
 
-
-
 #==== Looking at Sydney and Perth only from 1970-2018 ====
-sydney_and_perth_only <- combined_wider %>% filter(city_name=="Sydney" | city_name=="Perth")
+sydney_and_perth_only <- combined_wider %>% filter(city_name == "Sydney" | city_name == "Perth")
+
 #Rainfall and Year 
 Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$rainfall,sydney_and_perth_only$year,sydney_and_perth_only)
 
@@ -258,37 +238,114 @@ Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$min_temperature,sydney_a
 
 
 ```
+Note: Most of these analyses show that the residuals did not meet the assumptions of normality and homogeneity of variance. Ideally, a different analysis that does not rely on these assumptions would be used, or the data would be transformed such that the residuals conformed. However, that was outside of the scope of this initial analysis. 
 
-What graphs do we want to keep from here?
+**Graphical presentation of data**
+
+To further illustrate the effects of city, month, and year on temperature and rainfall, graphs have been created below. 
 ```{r}
-ggplot(data = combined) +
-  geom_point(mapping = aes(x = temperature, y = rainfall, color = temp_type))
-  #facet_grid(city_name~year)
+means <- combined_wider %>%
+  group_by(max_temperature, city_name) %>%
+  summarise(mean = mean(rainfall, na.rm = T))
+ggplot(means, aes(x = max_temperature, y = mean)) + 
+  geom_point() +
+  ylab("rainfall") + xlab("max_temperature") +
+  facet_grid(~city_name) +
+  ggtitle("Relationship between rainfall and maximum temperature by city")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = year, y = rainfall))
+means0 <- combined_wider %>%
+  group_by(min_temperature, city_name) %>%
+  summarise(mean = mean(rainfall, na.rm = T))
+ggplot(means0, aes(x = min_temperature, y = mean)) +
+  geom_point() +
+  ylab("rainfall") + xlab("min_temperature") +
+  facet_grid(~city_name) +
+  ggtitle("Relationship between rainfall and minimum temperature by city")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = year, y = temperature, color = temp_type))
+means1 <- combined %>%
+  group_by(year) %>%
+  summarise(mean = mean(rainfall, na.rm = T))
+ggplot(means1, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("rainfall") + xlab("year") +
+  ggtitle("Average rainfall by year")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = month, y = rainfall))
+means2 <- combined_wider %>%
+  group_by(year) %>%
+  summarise(mean = mean(max_temperature, na.rm = T))
+ggplot(means2, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("max_temperature") + xlab("year") +
+  ggtitle("Average maximum temperature by year")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = month, y = temperature, color = temp_type))
+means3 <- combined_wider %>%
+  group_by(year) %>%
+  summarise(mean = mean(min_temperature, na.rm = T))
+ggplot(means3, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("min_temperature") + xlab("year") +
+  ggtitle("Average minimum temperature by year")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = city_name, y = rainfall))
-  #facet_grid(~year)
+means4 <- combined %>%
+  group_by(month) %>%
+  summarise(mean = mean(rainfall, na.rm = T))
+ggplot(means4, aes(x = month, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("rainfall") + xlab("month") +
+  ggtitle("Average rainfall by month")
 
-ggplot(data = combined) +
-  geom_col(mapping = aes(x = month, y = temperature, color = temp_type))
-  #facet_grid(~city_name)
+means5 <- combined_wider %>%
+  group_by(month) %>%
+  summarise(mean = mean(max_temperature, na.rm = T))
+ggplot(means5, aes(x = month, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("max_temperature") + xlab("month") +
+  ggtitle("Average maximum temperature by month")
+
+means6 <- combined_wider %>%
+  group_by(month) %>%
+  summarise(mean = mean(min_temperature, na.rm = T))
+ggplot(means6, aes(x = month, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("min_temperature") + xlab("month") +
+  ggtitle("Average minimum temperature by month")
+
+means7 <- combined %>%
+  group_by(city_name, year) %>%
+  summarise(mean = mean(rainfall, na.rm = T))
+ggplot(means7, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("rainfall") + xlab("year") +
+  facet_grid(~city_name) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Average rainfall by city and year")
+
+means8 <- combined_wider %>%
+  group_by(city_name, year) %>%
+  summarise(mean = mean(max_temperature, na.rm = T))
+ggplot(means8, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("max_temperature") + xlab("year") +
+  facet_grid(~city_name) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Average maximum temperature by city and year")
+
+means9 <- combined_wider %>%
+  group_by(city_name, year) %>%
+  summarise(mean = mean(min_temperature, na.rm = T))
+ggplot(means9, aes(x = year, y = mean)) + 
+  geom_bar(position = position_dodge(), stat = "identity") +
+  ylab("min_temperature") + xlab("year") +
+  facet_grid(~city_name) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Average minimum temperature by city and year")
 
 ```
 
 
+**References**
 
+Potgieter, A., Meinke, H., Doherty, A., Sadras, V. O., Hammer, G., Crimp, S., & Rodriguez, D. (2013). Spatial impact of projected changes in rainfall and temperature on wheat yields in Australia. Climatic Change, 117(1-2), 163-179. 
 
-
+Australian Government-Bureau of Meteorology. (2020, 9 January). Annual climate statement 2019. http://www.bom.gov.au/climate/current/annual/aus/#tabs=Temperature 
 
