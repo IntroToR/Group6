@@ -62,13 +62,13 @@ temperature$city_name <- gsub("PERTH","Perth", temperature$city_name)
 temperature$city_name <- gsub("SYDNEY","Sydney", temperature$city_name)
 
 
-# Filter data from 1967 to 2018, for cities that have both rainfall and temperature data
+# Filter data from 1967 to 2018, for cities that have BOTH rainfall and temperature data
 rainfall_1 <-  rainfall %>%
-  filter(date >= "1967-01-01", date <= "2018-12-31") %>%
+  filter(date >= "1970-01-01", date <= "2018-12-31") %>%
   filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
 temp_1 <- temperature %>%
-  filter(date >= "1967-01-01", date <= "2018-12-31") %>%
+  filter(date >= "1970-01-01", date <= "201-12-31") %>%
   filter(city_name == "Brisbane" | city_name == "Canberra" | city_name == "Melbourne" | city_name == "Perth" | city_name == "Sydney")
 
 ```
@@ -110,7 +110,7 @@ combined$date_monthly <- as.Date(paste(combined$year,"-",combined$month,"-",1, s
 combined$date_yearly <- as.Date(paste(combined$year,"-",1,"-",1, sep = ""))#makes charting the dates on the x-axis by year easier
 
 
-combined_wider <- pivot_wider(data=combined, names_from = temp_type, values_from = temperature)
+combined_wider <- na.omit(pivot_wider(data=combined, names_from = temp_type, values_from = temperature))
 names(combined_wider)[names(combined_wider) == "max"] <- "max_temperature"
 names(combined_wider)[names(combined_wider) == "min"] <- "min_temperature"
 
@@ -118,124 +118,145 @@ names(combined_wider)[names(combined_wider) == "min"] <- "min_temperature"
 
 ___Timeline of Rainfall, Max Temperature, and Min Temperature for each Australian City___
 ```{r}
-combined_avg_rt <- aggregate(. ~city_name+date_yearly,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_yearly")], mean)
+#Monthly Average Timeline
+combined_avg_rt <- aggregate(. ~city_name+date_monthly,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_monthly")], mean)
 
 p1<-ggplot(data = combined_avg_rt) +
-  geom_point(mapping = aes(y = rainfall, x = date_yearly),size=0.5, colour="blue")+
-  geom_point(mapping = aes(y=min_temperature/1.5, x = date_yearly),size=0.001,alpha=0.75, colour="red") +
-  geom_point(mapping = aes(y=max_temperature/1.5, x = date_yearly),size=0.001,alpha=0.75, colour="black") +
-  scale_y_continuous(name = ("Rainfall (blue)"), sec.axis = sec_axis(~.*1.5,name="Temperature (Max=black, Min=red)"))+
+  geom_bar(mapping = aes(y = rainfall, x = date_monthly),size=0.25, colour="NA", fill="dodgerblue",stat="identity")+
+  geom_point(mapping = aes(y=min_temperature/0.5, x = date_monthly),size=0.05,alpha=0.75, colour="black") +
+  geom_point(mapping = aes(y=max_temperature/0.5, x = date_monthly),size=0.05,alpha=0.75, colour="red") +
+  scale_y_continuous(name = ("Rainfall (blue)"), limit=c(-5,65),sec.axis = sec_axis(~.*0.5,name="Temperature (Max=red, Min=black)"))+
   facet_grid(rows = vars(city_name))+
   scale_x_date(date_breaks = "years" , date_labels = "%Y")+
 labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
 p1+theme(axis.text.x = element_text(angle = 90))
 
+
+#Yearly Average Timeline
+combined_avg_rt <- aggregate(. ~city_name+date_yearly,data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_yearly")], mean)
+
+p1<-ggplot(data = combined_avg_rt) +
+  geom_bar(mapping = aes(y = rainfall, x = date_yearly),size=0.05, colour="NA", fill="dodgerblue", stat="identity")+
+  geom_point(mapping = aes(y=min_temperature/0.75, x = date_yearly),size=0.05,alpha=0.75, colour="black") +
+  geom_point(mapping = aes(y=max_temperature/0.75, x = date_yearly),size=0.05,alpha=0.75, colour="red") +
+  scale_y_continuous(name = ("Rainfall (blue)"), limit=c(-5,65),sec.axis = sec_axis(~.*0.75,name="Temperature (Max=red, Min=black)"))+
+  facet_grid(rows = vars(city_name))+
+  scale_x_date(date_breaks = "years" , date_labels = "%Y")+
+labs(x="Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
+p1+theme(axis.text.x = element_text(angle = 90))
 ```
+NOTE: Perth and Sydney have the only complete timelines to about 1970. Canberra only goes as far back as about 2008. Melbourne covers 1970 to 1993 and 1999-2018, and Brisbane covers 1972-1994 and 1999-2018.
 
-ANOVA
+
+___Find which time periods (by year at least) have all of the combined data for each city for each time point (besides Canberra)___
 ```{r}
+combined_wider_1 <- na.omit(combined_wider)
+intsct1 <- intersect(unique(combined_wider_1[combined_wider_1$city_name=="Perth","date_yearly"]),unique(combined_wider_1[combined_wider_1$city_name=="Sydney","date_yearly"]))
 
+intsct2 <- intersect(unique(combined_wider_1[combined_wider_1$city_name=="Brisbane","date_yearly"]),unique(combined_wider_1[combined_wider_1$city_name=="Melbourne","date_yearly"]))
 
+intersected_years<-intersect(intsct2,intsct1)
+
+temp_var<-as.data.frame(diff(as.numeric(intersected_years$date_yearly)),col.names="values")
+colnames(temp_var)<-"values"
+ind_gap <- which.max(temp_var$values) #largest value will be the year the first period ends. The value indexed after that (ind_gap+1) is start of next period
+
+print(paste("Period 1: ",substr(intersected_years$date_yearly[1],start=1,stop=4),"-",substr(intersected_years$date_yearly[ind_gap],start=1,stop=4),sep=""))
+print(paste("Period 2: ",substr(intersected_years$date_yearly[ind_gap+1],start=1,stop=4),"-",substr(tail(intersected_years$date_yearly, n=1),start=1,stop=4),sep=""))
+```
+So we can either test Melbourne, Perth, Sydney, and Brisbane for these two time periods OR we can just take Sydney and Perth for 1970-2018. Perth and Sydney are on opposite sides of the continent (east and west coasts respectively). Brisbane is more north on the east coast and Melbourne is furthest south on othe east coast (Sydney is between those cities on the east coast.
+
+Get rid of this chunk below?
+```{r}
 #To use date, need to use as.numeric(date) 
 ### RAINFALL BY MONTH
-# Normality Test: Shapiro-Wilks
-combined_wider$month <- as.factor(combined_wider$month) #had to coerce to a factor
-combined_wider$year <- as.factor(combined_wider$year) #had to coerce to a factor
+combined_wider$month <- as.numeric(combined_wider$month) #had to coerce to a factor
+combined_wider$year <- as.numeric(combined_wider$year) #had to coerce to a factor
 combined_wider$city_name <- as.factor(combined_wider$city_name) #had to coerce to a factor
 
-sydney_temp_rainfall <- combined_wider %>%
-  filter(city_name == "Sydney") %>%
-  mutate(id=row_number()) %>%
-  filter(id %% ceiling(max(c(id))/5000)  == 1)   #n() when used in dpylr is the "count number of observations in the current group
-model <- lm(rainfall ~ city_name, sydney_and_perth)
-ols_plot_resid_qq(model)
-ols_test_normality(model)
+#==========We can eliminate the rest of this block of code below if we just use a one-sample Kolmogorov-Smirnov test or the Anderson-Darling test (Anderson-Darling might be a more appropriate one to use)
+#Need to reduce each city (and remove Canberra) to make the total dataframe less than 5000 overall (but roughly equal amounts for each individual cities)
+reduced_sizes_overall <- combined_wider %>%
+  filter(city_name != "Canberra") %>%
+  slice(seq(1, n(), by = 2)) #Have to reduce to at least 5000 observations in order to be used for Shapiro-Wilk tests
+reduced_sizes_overall %>% count(city_name)
 
-#HOV Test: Brown-Forsythe test
-res <- bf.test(rainfall ~ month, data = sydney_only_reduced)
-
-sydney_only <- combined_wider[combined_wider$city_name == "Perth",]
-sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),] # lm can only accept up to 5000 observations
-model <- lm(rainfall ~ month, sydney_only_reduced)
-ols_plot_resid_qq(model)
-ols_test_normality(model)
-
-#HOV Test: Brown-Forsythe test
-res <- bf.test(rainfall ~ month, data = sydney_only_reduced)
-#res
-
-#res <- var.test(rainfall ~ year, data = sydney_only_reduced) #doesn't work because factors have more than 2 levles
-#res
-
-#Anova table
-anova(model)
-
-
-
-
-### MAX TEMP BY MONTH
-# Normality Test: Shapiro-Wilks
-#sydney_only <- combined_wider[combined_wider$city_name == "Sydney",]
-sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
-model <- lm(max ~ month, sydney_only_reduced)
-ols_plot_resid_qq(model)
-ols_test_normality(model)
-
-#HOV Test: Brown-Forsythe test
-res <- bf.test(max ~ month, data = sydney_only_reduced)
-
-#Anova table
-anova(model)
-
-
-
-
-### MIN TEMP BY MONTH
-# Normality Test: Shapiro-Wilks
-sydney_only_reduced <- sydney_only[seq(1,length(syndey_only$min),by=8),]
-model <- lm(min ~ month, sydney_only_reduced)
-ols_plot_resid_qq(model)
-ols_test_normality(model)
-
-#HOV Test: Brown-Forsythe test
-res <- bf.test(min ~ month, data = sydney_only_reduced)
-
-#Anova table
-anova_table<-anova(model)
+#Need to reduce each city (and remove Canberra) to less than 5000 for each individual city for Shapiro-Wilk test
+reduced_sizes_each_city <- combined_wider %>%
+  filter(city_name != "Canberra") %>%
+  group_by(city_name) %>%
+  slice(seq(1, n(), by = 2)) #Have to reduce to at least 5000 observations in order to be used for normality tests
+reduced_sizes_each_city %>% count(city_name)
 ```
 
-___Simple One-Way Analysis of Variance ANOVA___ combined this with above??? or remove this???? 
+#NORMALITY, HOV, AND ANOVA
+Rather than continously call the same several lines of code over and over and over, I'm going to make a function instead that I can use several times instead to reduce the overall lines of code and save everyone (especially myself) some sanity
 ```{r}
-#### General format is:   fit <- aov(y ~ A, data=mydataframe) where y and A are variables in the mydataframe
+Run_Normality_HOV_ANOVA_LinearReg_LinearReg<-function(y_input,factor_input,dataframe_name){
+model <- lm(y_input ~ factor_input,data=dataframe_name)
+ols_plot_resid_qq(model)
+ols_plot_resid_fit(model)
+#Anderson-Darling Normality Test
+ad_out<-ad.test(model$residuals) #Normality
+print(ad_out)
+cat("\n-------------------------------\n\n")
 
-#ANOVA temperature and temp_type+city_name
-aov_temp_type_city <- aov(temperature ~ temp_type + city_name, data = combined)
-print(summary(aov_temp_type_city))
-cat("\n-------------------------------\n")
+#HOV Test: Brown-Forsythe test
+res <- bf.test(rainfall ~ city_name, data = dataframe_name)
 
-#ANOVA rainfall and city_name
-aov_rainfall_city <- aov(rainfall ~ city_name, data = combined)
-print(summary(aov_rainfall_city))
-cat("\n-------------------------------\n")
+cat("\n-------------------------------\n-\n-\n-\n")
+#ANOVA Table
+anova(model)
 
-#ANOVA rainfall and month
-aov_rainfall_month <- aov(rainfall ~ month, data = combined)
-print(summary(aov_rainfall_month))
-cat("\n-------------------------------\n")
+#Significance of Slope Linear Regression
+summary(model)
+}
+```
+NOTE: Input has to be put in as
+> Run_Normality_HOV_ANOVA_LinearReg(dataframe$response_columnname,dataframe$group_columnname,dataframe)
 
-#ANOVA temperature and temp_type+month
-aov_temp_type_month <- aov(temperature ~ temp_type + month, data = combined)
-print(summary(aov_temp_type_month))
-cat("\n-------------------------------\n")
+___Interactions with Cities of Sydney and Perth___
+```{r}
+combined_wider$month <- as.numeric(combined_wider$month) 
+combined_wider$year <- as.numeric(combined_wider$year) 
+combined_wider$city_name <- as.factor(combined_wider$city_name) #had to coerce to a factor
 
-#ANOVA rainfall and year
-aov_rainfall_year <- aov(rainfall ~ year, data = combined)
-print(summary(aov_rainfall_year))
+#=== Looking at all cities from all times ===
 
-#ANOVA temperature and temp_type+year
-aov_temp_type_year <- aov(temperature ~ temp_type + year, data = combined)
-print(summary(aov_temp_type_year))
-cat("\n-------------------------------\n")
+#Rainfall and City
+Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$rainfall,combined_wider$city_name,combined_wider)
+
+#Max Temperature and City
+Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$max_temperature,combined_wider$city_name,combined_wider)
+
+#Min Temperature and City
+Run_Normality_HOV_ANOVA_LinearReg_LinearReg(combined_wider$min_temperature,combined_wider$city_name,combined_wider)
+
+#==== Looking at all cities from 2008 - 2018====
+Current_period <- combined_wider %>% filter(date >= "2008-01-01", date <= "2018-12-31")
+#Rainfall and Year 
+Run_Normality_HOV_ANOVA_LinearReg(Current_period$rainfall,Current_period$year,Current_period)
+
+#Max Temperature and Years 
+Run_Normality_HOV_ANOVA_LinearReg(Current_period$max_temperature,Current_period$year,Current_period)
+
+#Max Temperature and Year 
+Run_Normality_HOV_ANOVA_LinearReg(Current_period$min_temperature,Current_period$year,Current_period)
+
+
+
+#==== Looking at Sydney and Perth only from 1970-2018 ====
+sydney_and_perth_only <- combined_wider %>% filter(city_name=="Sydney" | city_name=="Perth")
+#Rainfall and Year 
+Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$rainfall,sydney_and_perth_only$year,sydney_and_perth_only)
+
+#Max Temperature and Years 
+Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$max_temperature,sydney_and_perth_only$year,sydney_and_perth_only)
+
+#Max Temperature and Year 
+Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$min_temperature,sydney_and_perth_only$year,sydney_and_perth_only)
+
+
 ```
 
 What graphs do we want to keep from here?
