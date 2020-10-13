@@ -26,8 +26,9 @@ First, the data sets to be used must be imported from the source (TidyTuesday) a
 
 ```{r}
 rainfall <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/rainfall.csv')
+write.table(rainfall, "rainfall_overall_data.txt")
 temperature <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-07/temperature.csv')
-
+write.table(temperature, "temperature_overall_data.txt")
 
 head(rainfall)
 head(temperature)
@@ -86,6 +87,7 @@ head(temp_1)
 Now that the two data sets have the same cities, dates, and formats, they can be combined into one data frame using the merge option. 
 ```{r}
 combined <- merge(rainfall_1, temp_1, by = c("city_name", "date"))
+write.table(combined, "overall_data.txt")
 head(combined)
 ```
 
@@ -339,6 +341,18 @@ ggplot(means9, aes(x = year, y = mean)) +
   facet_grid(~city_name) +
   theme(axis.text.x = element_text(angle = 90)) +
   ggtitle("Average minimum temperature by city and year")
+
+write.table(means, "rainfall means by max_temperature, city_name.txt")
+write.table(means0, "rainfall means by min_temperature, city_name.txt")
+write.table(means1, "rainfall means by year.txt")
+write.table(means2, "max_temperature means by year.txt")
+write.table(means3, "min_temperature means by year.txt")
+write.table(means4, "rainfall means by month.txt")
+write.table(means5, "max_temperature means by month.txt")
+write.table(means6, "min_temperature means by month.txt")
+write.table(means7, "rainfall means by city_name, year.txt")
+write.table(means8, "max_temperature means by city_name, year.txt")
+write.table(means9, "min_temperature means by city_name, year.txt")
 
 ```
 
