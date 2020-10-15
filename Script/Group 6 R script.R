@@ -73,6 +73,7 @@ combined_wider <- na.omit(pivot_wider(data = combined, names_from = temp_type, v
 names(combined_wider)[names(combined_wider) == "max"] <- "max_temperature"
 names(combined_wider)[names(combined_wider) == "min"] <- "min_temperature"
 
+
 #Monthly Average Timeline
 combined_avg_rt <- aggregate(. ~city_name + date_monthly, data = combined_wider[, c("rainfall","max_temperature","min_temperature","city_name","date_monthly")], mean)
 
@@ -83,8 +84,9 @@ p1 <- ggplot(data = combined_avg_rt) +
   scale_y_continuous(name = ("Rainfall (blue)"), limit = c(-5,65),sec.axis = sec_axis(~.*0.5,name = "Temperature (Max=red, Min=black)")) +
   facet_grid(rows = vars(city_name))+
   scale_x_date(date_breaks = "years" , date_labels = "%Y") +
-  labs(x = "Year",title = "Average Monthly Rainfall and Max/Min Temperatures")
-p1 + theme(axis.text.x = element_text(angle = 90))
+  labs(x = "Year",title = "Average Monthly Rainfall and Max/Min Temperatures") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggsave("montly_average_rainfall_temperatures_timeline.png")
 
 
 #Yearly Average Timeline
@@ -97,46 +99,36 @@ p1 <- ggplot(data = combined_avg_rt) +
   scale_y_continuous(name = ("Rainfall (blue)"), limit = c(-5,65), sec.axis = sec_axis(~.*0.75, name = "Temperature (Max = red, Min = black)")) +
   facet_grid(rows = vars(city_name)) +
   scale_x_date(date_breaks = "years" , date_labels = "%Y") +
-  labs(x = "Year", title = "Average Monthly Rainfall and Max/Min Temperatures")
-p1 + theme(axis.text.x = element_text(angle = 90))
-
-combined_wider_1 <- na.omit(combined_wider)
-intsct1 <- intersect(unique(combined_wider_1[combined_wider_1$city_name == "Perth","date_yearly"]), unique(combined_wider_1[combined_wider_1$city_name == "Sydney","date_yearly"]))
-
-intsct2 <- intersect(unique(combined_wider_1[combined_wider_1$city_name == "Brisbane","date_yearly"]), unique(combined_wider_1[combined_wider_1$city_name == "Melbourne","date_yearly"]))
-
-intersected_years <- intersect(intsct2, intsct1)
-
-temp_var <- as.data.frame(diff(as.numeric(intersected_years$date_yearly)), col.names = "values")
-colnames(temp_var) <- "values"
-ind_gap <- which.max(temp_var$values) #largest value will be the year the first period ends. The value indexed after that (ind_gap+1) is start of next period
-
-print(paste("Period 1: ", substr(intersected_years$date_yearly[1], start = 1, stop = 4), "-", substr(intersected_years$date_yearly[ind_gap], start = 1, stop = 4), sep = ""))
-print(paste("Period 2: ", substr(intersected_years$date_yearly[ind_gap + 1], start = 1, stop = 4), "-", substr(tail(intersected_years$date_yearly, n = 1), start = 1, stop = 4), sep = ""))
+  labs(x = "Year", title = "Average Yearly Rainfall and Max/Min Temperatures") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggsave("yearly_average_rainfall_temperatures_timeline.png")
 
 Run_Normality_HOV_ANOVA_LinearReg <- function(y_input, factor_input, dataframe_name){
-  model <- lm(y_input ~ factor_input, data = dataframe_name)
-  ols_plot_resid_qq(model)
-  ols_plot_resid_fit(model)
-  #Anderson-Darling Normality Test
-  ad_out <- ad.test(model$residuals) #Normality
-  print(ad_out)
-  cat("\n-------------------------------\n\n")
-  
-  #HOV Test: Brown-Forsythe test
-  res <- bf.test(rainfall ~ city_name, data = dataframe_name)
-  
-  cat("\n-------------------------------\n-\n-\n-\n")
-  #ANOVA Table
-  anova(model)
-  
-  #Significance of Slope Linear Regression
-  summary(model)
+model <- lm(y_input ~ factor_input, data = dataframe_name)
+ols_plot_resid_qq(model)
+ols_plot_resid_fit(model)
+#Anderson-Darling Normality Test
+ad_out <- ad.test(model$residuals) #Normality
+print(ad_out)
+cat("\n-------------------------------\n\n")
+
+#HOV Test: Brown-Forsythe test
+res <- bf.test(rainfall ~ city_name, data = dataframe_name)
+
+cat("\n-------------------------------\n-\n-\n-\n")
+#ANOVA Table
+anova(model)
+
+#Significance of Slope Linear Regression
+summary(model)
 }
 
 combined_wider$month <- as.numeric(combined_wider$month) 
 combined_wider$year <- as.numeric(combined_wider$year) 
 combined_wider$city_name <- as.factor(combined_wider$city_name)
+
+### Run the function with format as shown below:
+### Run_Normality_HOV_ANOVA_LinearReg(dataframe$response_columnname,dataframe$group_columnname,dataframe)
 
 #==== Looking at all cities from 2008 - 2018====
 Current_period <- combined_wider %>% filter(date >= "2008-01-01", date <= "2018-12-31")
@@ -169,7 +161,8 @@ ggplot(means, aes(x = max_temperature, y = mean)) +
   geom_point() +
   ylab("rainfall") + xlab("max_temperature") +
   facet_grid(~city_name) +
-  ggtitle("Relationship between rainfall and maximum temperature by city")
+  ggtitle("Average rainfall by maximum temperature for each city") +
+  ggsave("avg_rainfall_by_max_temp_for_each_city.png")
 
 means0 <- combined_wider %>%
   group_by(min_temperature, city_name) %>%
@@ -178,7 +171,8 @@ ggplot(means0, aes(x = min_temperature, y = mean)) +
   geom_point() +
   ylab("rainfall") + xlab("min_temperature") +
   facet_grid(~city_name) +
-  ggtitle("Relationship between rainfall and minimum temperature by city")
+  ggtitle("Average rainfall by minimum temperature for each city") +
+  ggsave("avg_rainfall_by_min_temp_for_each_city.png")
 
 means1 <- combined %>%
   group_by(year) %>%
@@ -186,7 +180,8 @@ means1 <- combined %>%
 ggplot(means1, aes(x = year, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("rainfall") + xlab("year") +
-  ggtitle("Average rainfall by year")
+  ggtitle("Average rainfall by year") +
+  ggsave("avg_rainfall_by_year.png")
 
 means2 <- combined_wider %>%
   group_by(year) %>%
@@ -194,7 +189,8 @@ means2 <- combined_wider %>%
 ggplot(means2, aes(x = year, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("max_temperature") + xlab("year") +
-  ggtitle("Average maximum temperature by year")
+  ggtitle("Average maximum temperature by year") +
+  ggsave("avg_max_temp_by_year.png")
 
 means3 <- combined_wider %>%
   group_by(year) %>%
@@ -202,7 +198,8 @@ means3 <- combined_wider %>%
 ggplot(means3, aes(x = year, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("min_temperature") + xlab("year") +
-  ggtitle("Average minimum temperature by year")
+  ggtitle("Average minimum temperature by year") +
+  ggsave("avg_min_temp_by_year.png")
 
 means4 <- combined %>%
   group_by(month) %>%
@@ -210,7 +207,8 @@ means4 <- combined %>%
 ggplot(means4, aes(x = month, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("rainfall") + xlab("month") +
-  ggtitle("Average rainfall by month")
+  ggtitle("Average rainfall by month") +
+  ggsave("avg_rainfall_by_month.png")
 
 means5 <- combined_wider %>%
   group_by(month) %>%
@@ -218,7 +216,8 @@ means5 <- combined_wider %>%
 ggplot(means5, aes(x = month, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("max_temperature") + xlab("month") +
-  ggtitle("Average maximum temperature by month")
+  ggtitle("Average maximum temperature by month") +
+  ggsave("avg_max_temp_by_month.png")
 
 means6 <- combined_wider %>%
   group_by(month) %>%
@@ -226,7 +225,8 @@ means6 <- combined_wider %>%
 ggplot(means6, aes(x = month, y = mean)) + 
   geom_bar(position = position_dodge(), stat = "identity") +
   ylab("min_temperature") + xlab("month") +
-  ggtitle("Average minimum temperature by month")
+  ggtitle("Average minimum temperature by month") +
+  ggsave("avg_min_temp_by_month.png")
 
 means7 <- combined %>%
   group_by(city_name, year) %>%
@@ -236,7 +236,8 @@ ggplot(means7, aes(x = year, y = mean)) +
   ylab("rainfall") + xlab("year") +
   facet_grid(~city_name) +
   theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Average rainfall by city and year")
+  ggtitle("Average rainfall by city and year") +
+  ggsave("avg_rainfall_by_city_and_year.png")
 
 means8 <- combined_wider %>%
   group_by(city_name, year) %>%
@@ -246,7 +247,8 @@ ggplot(means8, aes(x = year, y = mean)) +
   ylab("max_temperature") + xlab("year") +
   facet_grid(~city_name) +
   theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Average maximum temperature by city and year")
+  ggtitle("Average maximum temperature by city and year") +
+  ggsave("avg_max_temp_by_city_and_year.png")
 
 means9 <- combined_wider %>%
   group_by(city_name, year) %>%
@@ -256,7 +258,8 @@ ggplot(means9, aes(x = year, y = mean)) +
   ylab("min_temperature") + xlab("year") +
   facet_grid(~city_name) +
   theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Average minimum temperature by city and year")
+  ggtitle("Average minimum temperature by city and year") +
+  ggsave("avg_min_temp_by_city_and_year.png")
 
 write.table(means, "rainfall means by max_temperature, city_name.txt")
 write.table(means0, "rainfall means by min_temperature, city_name.txt")
