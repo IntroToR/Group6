@@ -209,7 +209,7 @@ Run_Normality_HOV_ANOVA_LinearReg(Current_period$rainfall,Current_period$year,Cu
 #Max Temperature and Years 
 Run_Normality_HOV_ANOVA_LinearReg(Current_period$max_temperature,Current_period$year,Current_period)
 
-#Max Temperature and Year 
+#Min Temperature and Years 
 Run_Normality_HOV_ANOVA_LinearReg(Current_period$min_temperature,Current_period$year,Current_period)
 
 #==== Looking at Sydney and Perth only from 1970-2018 ====
@@ -221,7 +221,7 @@ Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$rainfall,sydney_and_pert
 #Max Temperature and Years 
 Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$max_temperature,sydney_and_perth_only$year,sydney_and_perth_only)
 
-#Max Temperature and Year 
+#Min Temperature and Years 
 Run_Normality_HOV_ANOVA_LinearReg(sydney_and_perth_only$min_temperature,sydney_and_perth_only$year,sydney_and_perth_only)
 
 
@@ -352,6 +352,16 @@ write.table(means8, "max_temperature means by city_name, year.txt")
 write.table(means9, "min_temperature means by city_name, year.txt")
 
 ```
+**Results and Discussion**
+
+From 1970 to 2018, Brisbane had the highest average temperature (25.2 C) and the lowest standard deviation (3.5). However, the highest maximum temperature of 46.3 C was in Perth. The lowest minimum temperature was found in Canberra at -8.7 C. Sydney had the highest average rainfall (3.4 mm) and the highest maximum rainfall (327.6 mm) from 1970 to 2018.Sydney’s rainfall had a standard deviation of 11.1 mm, the second highest in the group. All locations had a minimum rainfall of 0 during this time period. 
+
+There were significant results in analyses from 2008 – 2018 of rainfall and years (P-Value <0.001), max temperature and years (P-Value 0.001), and min temperature and years (P-Value <0.001).
+
+The climate change analysis looking at only the cities of Perth and Sydney showed that results were significant for rainfall and years (P-Value <0.001), max temperature and years (P-Value <0.001), and min temperature and years (P-Value <0.001). 
+
+Looking further at just the cities of Perth and Sydney from 2008 – 2018, there were no clear trends for rainfall vs temperature. In addition, the average rainfall by year was quite variable. The average maximum temperature by year shows a slight increasing trend, however, the average minimum temperature by year does not follow the same trend. The average minimum temperature by year looks to be relatively stable. These results support previous literature that suggested temperature has been increasing linearly and that rainfall follows a random pattern. 
+
 
 
 **References**
